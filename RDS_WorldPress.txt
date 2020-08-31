@@ -1,0 +1,285 @@
+#Create new sec group
+Wordpress_Instance_Sec_Group
+
+# Inbound rules:
+ssh select 0/0/0/0 SSH Traffic
+HTTP Traffic
+MYSQL/ Aurora Database traffic
+
+# add tag with Name Wordpress_Instance_Sec_Group
+
+# Create
+
+# Spin new instance for WordPress:
+
+#!/bin/bash
+yum update -y
+amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
+yum install -y httpd
+systemctl start httpd
+systemctl enable httpd
+wget https://wordpress.org/latest.tar.gz
+tar -xzf latest.tar.gz
+sudo cp -r wordpress/* /var/www/html/
+cd /var/www/html/
+cp wp-config-sample.php wp-config.php
+chown -R apache /var/www
+chgrp -R apache /var/www
+chmod 775 /var/www
+find /var/www -type d -exec sudo chmod 2775 {} \;
+find /var/www -type f -exec sudo chmod 0664 {} \;
+systemctl restart httpd
+
+
+===================
+
+# Connect to WP instance
+
+# check apache status
+sudo systemctl status  httpd
+php --version 
+
+# check the mariaDB statussudo systemctl status mariadb
+
+# if not istalled go ahead and install
+sudo yum install -y mariadb-server
+
+sudo systemctl enable mariadb
+sudo systemctl start mariadb
+
+sudo mysql_secure_installation
+
+*****************
+[ec2-user@ip-172-31-86-112 ~]$ sudo mysql_secure_installation
+
+NOTE: RUNNING ALL PARTS OF THIS SCRIPT IS RECOMMENDED FOR ALL MariaDB
+      SERVERS IN PRODUCTION USE!  PLEASE READ EACH STEP CAREFULLY!
+
+In order to log into MariaDB to secure it, we'll need the current
+password for the root user.  If you've just installed MariaDB, and
+you haven't set the root password yet, the password will be blank,
+so you should just press enter here.
+
+Enter current password for root (enter for none):
+OK, successfully used password, moving on...
+
+Setting the root password ensures that nobody can log into the MariaDB
+root user without the proper authorisation.
+
+Set root password? [Y/n] y
+New password:
+Re-enter new password:
+Password updated successfully!
+Reloading privilege tables..
+ ... Success!
+
+
+By default, a MariaDB installation has an anonymous user, allowing anyone
+to log into MariaDB without having to have a user account created for
+them.  This is intended only for testing, and to make the installation
+go a bit smoother.  You should remove them before moving into a
+production environment.
+
+Remove anonymous users? [Y/n] y
+ ... Success!
+
+Normally, root should only be allowed to connect from 'localhost'.  This
+ensures that someone cannot guess at the root password from the network.
+
+Disallow root login remotely? [Y/n] y
+ ... Success!
+
+By default, MariaDB comes with a database named 'test' that anyone can
+access.  This is also intended only for testing, and should be removed
+before moving into a production environment.
+
+Remove test database and access to it? [Y/n] y
+ - Dropping test database...
+ ... Success!
+ - Removing privileges on test database...
+ ... Success!
+
+Reloading the privilege tables will ensure that all changes made so far
+will take effect immediately.
+
+Reload privilege tables now? [Y/n] y
+ ... Success!
+
+Cleaning up...
+
+All done!  If you've completed all of the above steps, your MariaDB
+installation should now be secure.
+
+Thanks for using MariaDB!
+[ec2-user@ip-172-31-86-112 ~]$ 
+
+******** QUICK RECAP *********
+
+    1  sudo systemctl status  httpd
+    2  php --version
+    3  sudo systemctl status mariadb
+    4  sudo yum install -y mariadb-server
+    5  sudo systemctl status mariadb
+    6  sudo systemctl start mariadb
+    7  sudo systemctl enable mariadb
+    8  sudo systemctl status mariadb
+    9  sudo mysql_secure_installation
+
+******** END QUICK RECAP *********
+
+mysql -u root -p
+USE mysql;
+SELECT Host, User, Password FROM user;
+
+CREATE DATABASE clarusway;
+CREATE USER admin IDENTIFIED BY 'password';
+GRANT ALL ON clarusway.* TO admin IDENTIFIED BY 'password' WITH GRANT OPTION; 
+
+*** *** *** *** *** *** ***
+MariaDB [mysql]> FLUSH PRIVILEGES;
+Query OK, 0 rows affected (0.00 sec)
+
+MariaDB [mysql]> exit
+Bye
+[ec2-user@ip-172-31-86-112 ~]$ cd /var/www/html/
+[ec2-user@ip-172-31-86-112 html]$ sudo vi wp-config.php
+
+# update the db name to clarusway
+# update the user name
+# update the password <= not the optimal security
+# save and exit vi mode
+:wq
+
+#restart apache
+sudo systemctl restart httpd
+
+# # # # # # # # # # # #
+# copy WP public dns and paste in the browser
+set it up by providing user and password
+
+use clarusway;
+show tables;
+SELECT user_login, user_email FROM wp_users;
+
+CREATE TABLE `store` (
+  `store_id` int(11) NOT NULL,
+  `address` varchar(50) NOT NULL,
+  `city` varchar(50) NOT NULL,
+  `state` varchar(50) NOT NULL,
+  PRIMARY KEY (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `store` VALUES (1,'03 Reinke Trail','Cincinnati','OH');
+INSERT INTO `store` VALUES (2,'5507 Becker Terrace','New York City','NY');
+INSERT INTO `store` VALUES (3,'54 Northland Court','Richmond','VA');
+INSERT INTO `store` VALUES (4,'08 South Crossing','Cincinnati','OH');
+INSERT INTO `store` VALUES (5,'553 Maple Drive','Minneapolis','MN');
+INSERT INTO `store` VALUES (6,'23 North Plaza','Aurora','CO');
+INSERT INTO `store` VALUES (7,'9658 Wayridge Court','Boise','ID');
+INSERT INTO `store` VALUES (8,'9 Grayhawk Trail','New York City','NY');
+INSERT INTO `store` VALUES (9,'16862 Westend Hill','Knoxville','TN');
+INSERT INTO `store` VALUES (10,'4 Bluestem Parkway','Savannah','GA');
+
+
+
+### Second table
+
+CREATE TABLE `client` (
+  `client_id` int(11) NOT NULL,
+  `first_name` varchar(50) NOT NULL,
+  `last_name` varchar(50) NOT NULL,
+  PRIMARY KEY (`client_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `client` VALUES (37270,'Yovonnda','Magrannell');
+INSERT INTO `client` VALUES (33391,'Darcy','Nortunen');
+INSERT INTO `client` VALUES (37851,'Sayer','Matterson');
+INSERT INTO `client` VALUES (40448,'Mindy','Crissil');
+INSERT INTO `client` VALUES (56274,'Keriann','Alloisi');
+INSERT INTO `client` VALUES (63196,'Alaster','Scutchin');
+INSERT INTO `client` VALUES (67009,'North','de Clerc');
+INSERT INTO `client` VALUES (67370,'Elladine','Rising');
+INSERT INTO `client` VALUES (68249,'Nisse','Voysey');
+INSERT INTO `client` VALUES (72540,'Guthrey','Iacopetti');
+INSERT INTO `client` VALUES (72913,'Kass','Hefferan');
+INSERT INTO `client` VALUES (75900,'Virge','Goodrum');
+INSERT INTO `client` VALUES (76196,'Mirilla','Janowski');
+INSERT INTO `client` VALUES (80529,'Lynde','Aronson');
+
+###
+show tables;
+
+=============================
+#navigate to ubuntu instance and connect to WP instance
+mysql -h ec2-18-212-4-161.compute-1.amazonaws.com -u admin -p
+
+~~~~~~ MY TERMINAL DATA ~~~~~~~~~~~
+MariaDB [(none)]> show databases;
++--------------------+
+| Database           |
++--------------------+
+| clarusway          |
+| information_schema |
++--------------------+
+2 rows in set (0.01 sec)
+
+MariaDB [(none)]> use clarusway;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+MariaDB [clarusway]> show tables;
++-----------------------+
+| Tables_in_clarusway   |
++-----------------------+
+| client                |
+| store                 |
+| wp_commentmeta        |
+| wp_comments           |
+| wp_links              |
+| wp_options            |
+| wp_postmeta           |
+| wp_posts              |
+| wp_term_relationships |
+| wp_term_taxonomy      |
+| wp_termmeta           |
+| wp_terms              |
+| wp_usermeta           |
+| wp_users              |
++-----------------------+
+14 rows in set (0.00 sec)
+
+MariaDB [clarusway]>exit
+
+~~~~~~ END MY TERMINAL DATA ~~~~~~~~~~~
+# separate the db from the application using mysqldump
+
+# mysqldump takes backups of clarusway
+save the dump of it as clarusway.sql
+
+ mysqldump -u admin -h ec2-18-212-4-161.compute-1.amazonaws.com -p clarusway > clarusway.sql
+
+@@@ mysqldump -u admin -h [Wordpress Instance DNS] -p clarusway > clarusway.sql
+
+ ****** backup cw.sql into the cw db in RDS instance
+
+ @@@ mysql -u admin -h [your-own-RDS-endpoint] -p clarusway < clarusway.sql
+
+mysql -u admin -h mysql.c1gxruipdufv.us-east-1.rds.amazonaws.com -p clarusway < clarusway.sql
+
+Hakan  8:04 PM
+so we downloaded 'clarusway' from the mariadb server on the worpress EC2 to a file, and then uploaded the contents of the file into 'clarusway db on mySQL RDS instance? YES
+did we have to have clarusway db exist on the RDS? YES
+
+
+# switch back to ec2 instance: 
+[ec2-user@ip-172-31-86-112 html]$ cd /var/www/html/
+
+sudo vi wp-config.php (in the html)
+# change the host name to RDS DNS
+/** MySQL hostname */
+define( 'DB_HOST', 'mysql.c1gxruipdufv.us-east-1.rds.amazonaws.com' );
+:wq
+
+# restart apache
+sudo systemctl restart httpd

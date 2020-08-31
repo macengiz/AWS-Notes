@@ -1,0 +1,229 @@
+Hands-on DB-05 : Installing Wordpress App on EC2 and RDS
+Purpose of the this hands-on training is to create a LAMP (Linux, Apache, MariaDB, PHP) stack in EC2 Instance and run a Wordpress application with Database hosted in RDS.
+Learning Outcomes
+At the end of the this hands-on training, students will be able to;
+    setup an environment and install LAMP stack.
+    install and configure Wordpress.
+    configure connection between EC2 instance and Database.
+    set up the database for Wordpress App.
+    back up tha database and migrate it to RDS DB Instance.
+Outline
+    Part 1 - Preparing the Environment and Installing LAMP Stack without Database
+    Part 2 - Installing and Configuring Database
+    Part 3 - Setting Up the Connection between EC2 and Database
+    Part 4 - Creating DB Tables and Populating with Data
+    Part 5 - Migrating Database to the RDS DB Instance
+Part 1 - Preparing the Environment and Installing LAMP Stack without Database
+Step 1 - Creating Security Group
+    Create 2 Security Groups:
+    1. Wordpress_Instance_Sec_Group: SSH 22, HTTP 80, Mysql/Aurora 3306  > anywhere(0:/00000)
+    2. RDS_Database_Sec_Group: Mysql/Aurora 3306 > anywhere (0:/00000)
+Step 2 - Creating RDS Instance
+    First, go to the Amazon RDS Service and select Database section from the left-hand menu, click databases and then click Creating Database.
+    Choose a database creation method.
+Standard Create
+    Select engine option.
+MySQL
+    Select version.
+8.0.20 (latest)
+    Select template.
+free tier
+    Configure settings.
+DB instance identifier: RDS-mysql
+Master password: admin
+Master username: Pl123456789
+    Select DB instance size.
+Burstable classes (includes t classes) : db.t2.micro
+    Select storage.
+Storage type          : SSD
+Storage size          : default 20GiB
+Storage autoscaling   : unchecked
+    Availability & durability.
+We can not select any option for free tier
+    Configure connectivity.
+vpc                           : default
+click Additional connectivity configuration;
+Subnet group                  : default
+Publicly accessible           : Yes
+Existing VPC security groups  : Default, RDS_Database_Sec_Group
+Availability Zone             : No preference
+Database port                 : 3306
+    Set database authentication.
+DB authentication: Password authentication
+    Additional configuration.
+Initial DB name                   : clarusway
+DB parameter group & option group : default
+Automatic backups                 : enable
+Backup retention period: 7 days (Explain how)
+Select window for backup to show snapshots
+Monitoring  : Unchecked
+Log exports : Unchecked
+Maintance
+  - Enable auto minor version upgrade: Enabled (Explain what minor and major 
+upgrade are)
+  - Maintance window (be careful not to overlap maintance and backup windows)
+deletion protection: enabled
+    Click Create Database button.
+Step 3 - Creating EC2 Instance
+    Create EC2 and install LAMP stack with user data using the following setup for Wordpress App.
+    Configure instance.
+AMI             : Amazon Linux 2
+Instance Type   : t2.micro
+Tag             :
+    Key         : Name
+    Value       : Wordpress_Instance
+    Set user data.
+#!/bin/bash
+yum update -y
+amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
+yum install -y httpd
+systemctl start httpd
+systemctl enable httpd
+wget https://wordpress.org/latest.tar.gz
+tar -xzf latest.tar.gz
+sudo cp -r wordpress/* /var/www/html/
+cd /var/www/html/
+cp wp-config-sample.php wp-config.php
+chown -R apache /var/www
+chgrp -R apache /var/www
+chmod 775 /var/www
+find /var/www -type d -exec sudo chmod 2775 {} \;
+find /var/www -type f -exec sudo chmod 0664 {} \;
+systemctl restart httpd
+    Set Security Group as Wordpress_Instance_Sec_Group.
+Step 4 - Creating a Client Instance
+    Create client EC2 instance with following setup and connect with SSH.
+    Configure instance.
+AMI             : Amazon Linux 2
+Instance Type   : t2.micro
+Tag             :
+    Key     : Name
+    Value   : Client_Instance
+    Set user data.
+#!/bin/bash
+yum update -y
+yum install -y https://dev.mysql.com/get/mysql57-community-release-el7-11.noarch.rpm
+yum install -y mysql-community-client
+    Set Security Group as Wordpress_Instance_Sec_Group.
+Part 2 - Installing and Configuring Database
+    Go to the Wordpress EC2 Instance on console.
+    Paste the DNS of Wordpress EC2 instance into the browser and show the Error of establishing a database connection
+    Connect EC2 Instance named Wordpress_Instance with SSH.
+    Check the Apache Server status.
+sudo systemctl status  httpd
+    Check the PHP version.
+php --version 
+   #(you'll see PHP 7.2.30)
+    Check the MariaDB status and show that there is no MariaDB server running.
+sudo systemctl status mariadb
+   #(you'll see mariadb not found)
+    Install MariaDB.
+sudo yum install -y mariadb-server
+    Start MariaDB server.
+sudo systemctl start mariadb
+    Enable MariaDB service, so that MariaDB service will be activated on restarts.
+sudo systemctl enable mariadb
+    Setup secure installation of MariaDB.
+sudo mysql_secure_installation
+    Connect to MariaDB terminal.
+mysql -u root -p
+    Create new database named clarusway.
+CREATE DATABASE clarusway;
+    Show newly created database.
+SHOW DATABASES;
+    Create a user named admin.
+CREATE USER admin IDENTIFIED BY 'Pl123456789';
+    Grant permissions to the user admin for database clarusway.
+GRANT ALL ON clarusway.* TO admin IDENTIFIED BY 'Pl123456789' WITH GRANT OPTION;  
+    Update privileges.
+FLUSH PRIVILEGES;
+    Close the MariaDB terminal
+EXIT;
+Part 3 - Setting Up the Connection between EC2 and Database
+    Show the current path with pwd
+    Go to the /var/www/html/" to back up the config file before changing.
+cd /var/www/html/
+sudo cp wp-config-sample.php wp-config.php
+    Change the config file as shown below to enable connection with database.
+sudo nano wp-config.php
+# set following lines as shown
+define( 'DB_NAME', 'clarusway');
+define( 'DB_USER', 'admin' );
+define( 'DB_PASSWORD', 'Pl123456789');
+# Ctrl X and Y to save and exit nano editor
+sudo systemctl restart httpd
+    Check the browser. You'll see the home page of Wordpress (enter password, user name etc.)
+Part 4 - Creating DB Tables and Populating with Data
+    Log into the database again to populate tables with data.
+mysql -u admin -p
+    Show databases and select the database clarusway db.
+SHOW DATABASES;
+USE clarusway;
+    Create a table named store.
+CREATE TABLE `store` (
+  `store_id` int(11) NOT NULL,
+  `address` varchar(50) NOT NULL,
+  `city` varchar(50) NOT NULL,
+  `state` varchar(50) NOT NULL,
+  PRIMARY KEY (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    Insert sample data into the table store.
+INSERT INTO `store` VALUES (1,'03 Reinke Trail','Cincinnati','OH');
+INSERT INTO `store` VALUES (2,'5507 Becker Terrace','New York City','NY');
+INSERT INTO `store` VALUES (3,'54 Northland Court','Richmond','VA');
+INSERT INTO `store` VALUES (4,'08 South Crossing','Cincinnati','OH');
+INSERT INTO `store` VALUES (5,'553 Maple Drive','Minneapolis','MN');
+INSERT INTO `store` VALUES (6,'23 North Plaza','Aurora','CO');
+INSERT INTO `store` VALUES (7,'9658 Wayridge Court','Boise','ID');
+INSERT INTO `store` VALUES (8,'9 Grayhawk Trail','New York City','NY');
+INSERT INTO `store` VALUES (9,'16862 Westend Hill','Knoxville','TN');
+INSERT INTO `store` VALUES (10,'4 Bluestem Parkway','Savannah','GA');
+    Create a table named client.
+CREATE TABLE `client` (
+  `client_id` int(11) NOT NULL,
+  `first_name` varchar(50) NOT NULL,
+  `last_name` varchar(50) NOT NULL,
+  PRIMARY KEY (`client_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    Insert sample data into the table client.
+INSERT INTO `client` VALUES (37270,'Yovonnda','Magrannell');
+INSERT INTO `client` VALUES (33391,'Darcy','Nortunen');
+INSERT INTO `client` VALUES (37851,'Sayer','Matterson');
+INSERT INTO `client` VALUES (40448,'Mindy','Crissil');
+INSERT INTO `client` VALUES (56274,'Keriann','Alloisi');
+INSERT INTO `client` VALUES (63196,'Alaster','Scutchin');
+INSERT INTO `client` VALUES (67009,'North','de Clerc');
+INSERT INTO `client` VALUES (67370,'Elladine','Rising');
+INSERT INTO `client` VALUES (68249,'Nisse','Voysey');
+INSERT INTO `client` VALUES (72540,'Guthrey','Iacopetti');
+INSERT INTO `client` VALUES (72913,'Kass','Hefferan');
+INSERT INTO `client` VALUES (75900,'Virge','Goodrum');
+INSERT INTO `client` VALUES (76196,'Mirilla','Janowski');
+INSERT INTO `client` VALUES (80529,'Lynde','Aronson');
+    Show newly created tables.
+SHOW tables;
+    Check the tables if the data is there.
+SELECT * FROM store;
+SELECT * FROM client;
+    Exit from database.
+EXIT;
+Part 5 - Migrating Database to the RDS DB Instance
+    Connect to the RDS DB instance to create clarusway database.
+mysql -u admin -h [your-own-RDS-endpoint] -p
+    Create new database named clarusway;
+CREATE DATABASE clarusway;
+    Show newly created database and exit.
+SHOW DATABASES;
+EXIT;
+    Connect to the client instance.
+    Create back-up of clarusway database from the Wordpress Instance, within Client EC2.
+mysqldump -u admin -h [Wordpress Instance DNS] -p clarusway > clarusway.sql
+    Migrate clarusway database to the RDS instance using the back-up file within Client EC2.
+mysql -u admin -h [your-own-RDS-endpoint] -p clarusway < clarusway.sql
+    Log into database with RDS to check if clarusway migrated correctly.
+mysql -u admin -h [your-own-RDS-endpoint] -p
+    Select the clarusway db and show data within tables of client and store.
+USE clarusway;
+SHOW tables;
+SELECT * FROM client;
+SELECT * FROM store;

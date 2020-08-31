@@ -1,0 +1,64 @@
+8-25-2020
+Route 53 Hands On
+================
+On AWS navigate to Route 53 => Registered Domains => Register a Domain
+Create sec key in Frankfurt, Tokyo and NVA regions
+Create 4 Stacks: in Frankfurt, Tokyo and 2 in NVA areas using given templates
+Create a www.bucket1 that matches domain name (purchased in step 1)
+www.domain.com
+make it public
+add policy
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "PublicReadGetObject",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "YOUR BUCKET ARN/*"
+        }
+    ]
+}
+Grab the Bucket ARN and replace it in the policy snippet
+    *** select the bucket and on the right panel on the top Copy ARN
+Create a info.bucket2 that matches domain name (purchased in step 1)
+info.domain.com
+make it public
+add policy (same way as earlier)
+do that for both buckets: www and info   
+Go to Bucket => Properties => Static website hosting => Use this bucket, add index.html in the first line
+repeat for both www and info
+Navigate to www bucket and upload .png and index.html files
+Navigate to info bucket and upload other file and index.html [if the index(1).html in your downloads folder, simply rename the file to index.html]
+
+
+======================================================
+     *** Point my domain to IP address*** 
+Navigate to Route53 => Hosted Zones
+Click on the domain name: don't mess with name server (NS) values
+Create Record Set:
+    add 'www'
+    Type: IPv4
+    TTl: 60
+    Value: public IP from EC2 (NVA1)
+CREATE.
+
+*** Point to the existing domain ***
+Create Record Set:
+    add 'www'
+    Select Type: Canonical name
+    Value: www.domain.com || ec2address
+CREATE.
+
+in git bash do: nslookup domain.com
+it will display the IP used to run
+
+*** Delete record sets
+Create New Record set:
+Nmae: www
+Type: IPv4
+Alias: Yes
+Alias target: pick your s3 bucket
+Simple
+Create
